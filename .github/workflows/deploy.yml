@@ -1,48 +1,35 @@
-name: Deploy Pipeline
+name: Deploy FastAPI to Azure VM
 
 on:
   push:
     branches:
-      - main  # Runs on push to the main branch (after PR is merged)
+      - main  # Change this if your main branch is different
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v2
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
+      - name: Login to DockerHub
+        run: echo "${{ secrets.DOCKERHUB_PASSWORD }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
 
-      - name: Set up Docker Buildx cache
-        uses: actions/cache@v2
-        with:
-          path: /tmp/.buildx-cache
-          key: ${{ runner.os }}-buildx-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-buildx-
-            
-      - name: Build Docker image
+      - name: Build and Push Docker Image
         run: |
-          docker build -t fastapi-app .  # Make sure Dockerfile is correct
+          docker build -t ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest .
+          docker push ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
 
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
+      - name: Deploy to Azure VM
+        uses: appleboy/ssh-action@v0.1.7
         with:
-          username: ${{ secrets.DOCKER_USERNAME }}
-          password: ${{ secrets.DOCKER_PASSWORD }}
-
-      - name: Push Docker image to Docker Hub
-        run: |
-          docker push fastapi-app  # Ensure you have set up Docker Hub
-
-      - name: SSH to server and deploy
-        uses: appleboy/ssh-action@v0.1.6
-        with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.AZURE_VM_IP }}
+          username: ${{ secrets.AZURE_VM_USER }}
+          key: ${{ secrets.AZURE_VM_PRIVATE_KEY }}
           script: |
-            docker pull fastapi-app
-            docker run -d -p 8000:8000 fastapi-app  # Ensure server is configured
+            docker pull ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
+            docker stop fastapi-container || true
+            docker rm fastapi-container || true
+            docker run -d --name fastapi-container -p 8000:8000 ${{ secrets.DOCKERHUB_USERNAME }}/fastapi-app:latest
+            sudo systemctl restart nginx
