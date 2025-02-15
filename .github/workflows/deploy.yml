@@ -7,10 +7,10 @@ on:
 
 jobs:
   test:
-    uses: ./.github/workflows/test.yml  # Runs tests first
+    uses: ./.github/workflows/test.yml  # Call the test workflow first
 
   deploy:
-    needs: test  # Wait for tests to pass before deploying
+    needs: test  # Wait for test job to pass before deploying
     runs-on: ubuntu-latest
 
     steps:
