@@ -1,12 +1,13 @@
 name: Test FastAPI Application
 
 on:
-  pull_request:
-    branches:
-      - main
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
+  workflow_call:  # This allows it to be used in another workflow
 
 jobs:
   test:
@@ -23,9 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m venv venv
+          source venv/bin/activate
           pip install -r requirements.txt
 
       - name: Run Tests
         run: |
-          pytest --disable-warnings
+          source venv/bin/activate
+          pytest
