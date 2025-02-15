@@ -3,10 +3,14 @@ name: Deploy FastAPI to Azure VM
 on:
   push:
     branches:
-      - main  # Change this if your main branch is different
+      - main
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml  # Runs tests first
+
   deploy:
+    needs: test  # Wait for tests to pass before deploying
     runs-on: ubuntu-latest
 
     steps:
